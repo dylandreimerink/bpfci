@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Mount sda1 as /mnt/root
+mkdir -p /mnt/root
+mount /dev/sda1 /mnt/root -t ext2
+
+exec /mnt/root/run.sh
