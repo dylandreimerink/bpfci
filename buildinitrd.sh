@@ -41,3 +41,4 @@ echo "=== archiving initrd ==="
 cd build/initrd
 find . -print0 | cpio --null --create --verbose --format=newc | gzip --best > ../../dist/initrd.gz
 cd ../..
+sha256sum dist/initrd.gz | awk '{ print $1 }' > dist/initrd.gz.sha256

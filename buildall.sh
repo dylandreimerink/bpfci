@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This bash script will all kernel versions and architectures
-for version in $(ls config)
+for version in $(ls config/linux)
 do
-    ./buildkernel.sh all amd64-5.15.5
+    ./buildkernel.sh all $version
 done

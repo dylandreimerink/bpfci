@@ -6,7 +6,7 @@ subcommand=$1
 kernelVersion=$2
 
 sub_help(){
-    echo "Usage: $ProgName <subcommand> <kernel-version>\n"
+    echo "Usage: $ProgName <subcommand> <kernel-version>"
     echo "Subcommands:"
     echo "    all       cleans, downloads, compiles and saves the kernel"
     echo "    clean     remove the build directory"
@@ -64,11 +64,11 @@ check(){
     [ -z $kernelVersion ] && die "error: <kernel-version> is a required argument"
 
     # Any cpu arch/kernel version for which we have a config directory is supported
-    if [[ -d config/$kernelVersion ]]; then
+    if [[ -d config/linux/$kernelVersion ]]; then
         echo "=== Kernel version supported ==="
     else
         echo "Unsupported CPU arch/kernel version combo, pick one from:"
-        for dir in $(ls config)
+        for dir in $(ls config/linux)
         do
             echo "- $dir"
         done
@@ -100,15 +100,15 @@ download(){
     echo "=== downloading kernel tarball ==="
 
     # Download kernel tarball, only if we don't have the file already
-    wget $(cat config/$kernelVersion/url) --progress=bar -nc -O build/$kernelVersion.tar.xz || true
+    wget $(cat config/linux/$kernelVersion/url) --progress=bar -nc -O build/$kernelVersion.tar.xz || true
 
     echo "=== extracting tarball ==="
     tar -xf build/$kernelVersion.tar.xz -C build
-    mv build/linux-$(cat config/$kernelVersion) $kernelVersion
+    mv build/linux-$(cat config/linux/$kernelVersion) $kernelVersion
 }
 
 build(){
-    cp config/$kernelVersion/.config build/$kernelVersion/.config
+    cp config/linux/$kernelVersion/.config build/$kernelVersion/.config
     cd build/$kernelVersion/
 
     # Build with all available cores, minus 2 for other tasks
@@ -120,6 +120,7 @@ build(){
 save(){
     mkdir -p dist
     cp build/$kernelVersion/arch/x86/boot/bzImage dist/$kernelVersion-bzImage
+    sha256sum dist/$kernelVersion-bzImage | awk '{ print $1 }' > dist/$kernelVersion-bzImage.sha256
 }
 
 case $subcommand in
