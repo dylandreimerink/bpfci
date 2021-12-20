@@ -91,12 +91,10 @@ assertCommand() {
 
 clean(){
     rm -f build/$kernelVersion.tar.xz
-    rm -Rf build/kernel-${kernelVersion}
+    rm -Rf build/${kernelVersion}
 }
 
-download(){
-    mkdir -p build/$kernelVersion
-    
+download(){   
     echo "=== downloading kernel tarball ==="
 
     # Download kernel tarball, only if we don't have the file already
@@ -104,7 +102,7 @@ download(){
 
     echo "=== extracting tarball ==="
     tar -xf build/$kernelVersion.tar.xz -C build
-    mv build/linux-$(cat config/linux/$kernelVersion) $kernelVersion
+    mv build/linux-$(cat config/linux/$kernelVersion/version) build/$kernelVersion
 }
 
 build(){
