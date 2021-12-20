@@ -20,7 +20,7 @@ This is a list of important settings which should be corrected if they are not a
 
 ```properties
 # Add custom kernel version suffix
-CONFIG_LOCALVERSION="bpfci"
+CONFIG_LOCALVERSION="-bpfci"
 
 # Explicitly enable all BPF flags
 CONFIG_BPF=y
