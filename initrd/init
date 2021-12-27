@@ -6,6 +6,7 @@
 # crucial mountpoints
 mount -t proc none /proc
 mount -t sysfs none /sys
+mount -t bpf bpffs /sys/fs/bpf
 mount -n tmpfs /var -t tmpfs -o size=17825792
 mount -t tmpfs dev /dev
 
