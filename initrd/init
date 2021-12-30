@@ -141,6 +141,9 @@ echo "...mounts done"
 mkdir -p /var/run /var/tmp /var/log /var/etc /var/etc/persistent /var/lock
 echo "...filesystem init done"
 
+# Start network conn
+ip link set lo up
+
 echo "...running /sbin/init"
 exec /sbin/init
 
