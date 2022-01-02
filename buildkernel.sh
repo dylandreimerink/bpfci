@@ -8,9 +8,7 @@ kernelVersion=$2
 sub_help(){
     echo "Usage: $ProgName <subcommand> <kernel-version>"
     echo "Subcommands:"
-    echo "    all       cleans, downloads, compiles and saves the kernel"
-    echo "    clean     remove the build directory"
-    echo "    download  downloads and unpacks the kernel"
+    echo "    all       compiles and saves the kernel"
     echo "    build     copies kernel config file, install dependencies and builds the kernel"
     echo "    save      saves the bzImage of the generated kernel in the dist folder"
     echo ""
@@ -22,22 +20,8 @@ sub_help(){
 # Public "all" command
 sub_all(){
     check
-    clean
-    download
     build
     save
-}
-
-# Public "clean" command
-sub_clean(){
-    check
-    clean
-}
-
-# Public "download" command
-sub_download(){
-    check
-    download
 }
 
 # Public "download" command
@@ -64,11 +48,11 @@ check(){
     [ -z $kernelVersion ] && die "error: <kernel-version> is a required argument"
 
     # Any cpu arch/kernel version for which we have a config directory is supported
-    if [[ -d config/linux/$kernelVersion ]]; then
+    if [[ -d linux/$kernelVersion ]]; then
         echo "=== Kernel version supported ==="
     else
         echo "Unsupported CPU arch/kernel version combo, pick one from:"
-        for dir in $(ls config/linux)
+        for dir in $(ls linux)
         do
             echo "- $dir"
         done
@@ -76,9 +60,7 @@ check(){
     fi
 
     # Check tools
-    assertCommand wget
-    assertCommand tar
-    assertCommand make
+    assertCommand docker
 }
 
 assertCommand() {
@@ -89,35 +71,15 @@ assertCommand() {
     fi
 }
 
-clean(){
-    rm -f build/$kernelVersion.tar.xz
-    rm -Rf build/${kernelVersion}
-}
-
-download(){   
-    echo "=== downloading kernel tarball ==="
-
-    # Download kernel tarball, only if we don't have the file already
-    wget $(cat config/linux/$kernelVersion/url) --progress=bar -nc -O build/$kernelVersion.tar.xz || true
-
-    echo "=== extracting tarball ==="
-    tar -xf build/$kernelVersion.tar.xz -C build
-    mv build/linux-$(cat config/linux/$kernelVersion/version) build/$kernelVersion
-}
-
 build(){
-    cp config/linux/$kernelVersion/.config build/$kernelVersion/.config
-    cd build/$kernelVersion/
-
-    # Build with all available cores, minus 2 for other tasks
-    make -j$(expr $(nproc) - 2) || true
-
-    cd ../../
+    docker build linux/$kernelVersion -f linux/$kernelVersion/Dockerfile -t linux-$kernelVersion:latest
 }
 
 save(){
     mkdir -p dist
-    cp build/$kernelVersion/arch/x86/boot/bzImage dist/$kernelVersion-bzImage
+    id=$(docker create --rm linux-$kernelVersion:latest placeholder)
+    docker cp $id:/bzImage dist/$kernelVersion-bzImage
+    docker rm $id
     sha256sum dist/$kernelVersion-bzImage | awk '{ print $1 }' > dist/$kernelVersion-bzImage.sha256
 }
 

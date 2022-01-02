@@ -1,44 +1,99 @@
 #!/bin/bash
 set -e
 
-BBVersion="busybox-1.34.1"
+ProgName=$(basename $0)
+subcommand=$1
+version=$2
 
-echo "=== cleaning build/initrd ==="
-rm -Rf build/initrd
-mkdir -p build/initrd
+sub_help(){
+    echo "Usage: $ProgName <subcommand> <initrd-version>"
+    echo "Subcommands:"
+    echo "    all       compiles and saves the initrd"
+    echo "    build     copies initrd config file, install dependencies and builds the initrd"
+    echo "    save      saves the bzImage of the generated initrd in the dist folder"
+    echo ""
+    echo "For help with each subcommand run:"
+    echo "$ProgName <subcommand> -h|--help"
+    echo ""
+}
 
-echo "=== downloading busybox tarball ==="
-wget https://www.busybox.net/downloads/$BBVersion.tar.bz2 --progress=bar -nc -O build/$BBVersion.tar.bz2 || true
+# Public "all" command
+sub_all(){
+    check
+    build
+    save
+}
 
-echo "=== extracting tarball ==="
-rm -Rf build/$BBVersion
-tar -xf build/$BBVersion.tar.bz2 -C build
+# Public "download" command
+sub_build() {
+    check
+    build
+}
 
-echo "=== compiling busybox ==="
-cp config/busybox/.config build/$BBVersion/.config
-cd build/$BBVersion
-make -j$(expr $(nproc) - 2) || true
-cd ../../
+# Public "build" command
+sub_save() {
+    check
+    save
+}
 
-echo "=== making directories ==="
-dirs=(dev etc/init.d lib64 mnt opt proc run sbin sys tmp usr/bin usr/sbin var)
-for dir in ${dirs[@]}
-do
-    mkdir -p build/initrd/$dir
-done
+die () {
+    echo >&2 "$@"
+    sub_help
+    exit 1
+}
 
-echo "=== making symlinks ==="
-ln -s usr/bin build/initrd/bin
+# Check args and environment
+check(){
+    # Input checking
+    [ -z $version ] && die "error: <initrd-version> is a required argument"
 
-echo "=== copying files ==="
-cp initrd/etc/init.d/rcS build/initrd/etc/init.d/rcS
-cp initrd/init build/initrd/init
+    # Any cpu initrd version for which we have a config directory is supported
+    if [[ -e initrd/$version.Dockerfile ]]; then
+        echo "=== initrd version supported ==="
+    else
+        echo "Unsupported CPU initrd version, pick one from:"
+        for dir in $(cd initrd && ls *.Dockerfile)
+        do
+            echo "- $(basename $dir .Dockerfile)"
+        done
+        exit 1
+    fi
 
-echo "=== copying busybox ==="
-cp build/$BBVersion/busybox build/initrd/usr/bin
+    # Check tools
+    assertCommand docker
+}
 
-echo "=== archiving initrd ==="
-cd build/initrd
-find . -print0 | cpio --null --create --verbose --format=newc | gzip --best > ../../dist/initrd.gz
-cd ../..
-sha256sum dist/initrd.gz | awk '{ print $1 }' > dist/initrd.gz.sha256
+assertCommand() {
+    if ! command -v $1 &> /dev/null
+    then
+        echo "missing '$1', please install it"
+        exit 1
+    fi
+}
+
+build(){
+    docker build initrd -f initrd/$version.Dockerfile -t initrd-$version:latest
+}
+
+save(){
+    mkdir -p dist
+    id=$(docker create --rm initrd-$version:latest placeholder)
+    docker cp $id:/initrd.gz dist/$version-initrd.gz
+    docker rm $id
+    sha256sum dist/$version-initrd.gz | awk '{ print $1 }' > dist/$version-initrd.gz.sha256
+}
+
+case $subcommand in
+    "" | "-h" | "--help")
+        sub_help
+        ;;
+    *)
+        shift
+        sub_${subcommand} $@
+        if [ $? = 127 ]; then
+            echo "Error: '$subcommand' is not a known subcommand." >&2
+            echo "       Run '$ProgName --help' for a list of known subcommands." >&2
+            exit 1
+        fi
+        ;;
+esac
